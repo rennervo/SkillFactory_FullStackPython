@@ -1,39 +1,12 @@
-class HTML:
-    def __init__(self, output="default.html"):
-        self.output = output
-        self.children = []
-        self.name = "html"
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        file = open(self.output, "w")
-        file.write("<%s>" % self.name)
-        for child in self.children:
-            file.write(str(child))
-        file.write("\n</%s>" % self.name)
-        file.close()
-
-    def __enter__(self):
-        return self
+def add_n(txt):
+    if txt[-2] != '\n':
+        txt += '\n'
+    return txt
 
 
-class TopLevelTag(HTML):
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-
-    def __str__(self):
-        if self.children:
-            opening = "\n<%s>" % self.name
-            internal = ""
-            for child in self.children:
-                internal += str(child)
-            ending = "\n</%s>" % self.name
-            return opening + internal + ending
-
-
-class Tag(TopLevelTag):
+class Tag:
     def __init__(self, name, klass=None, is_single=False, **kwargs):
-        super().__init__(name)
+        self.name = name
         self.is_single = is_single
         self.klass = klass
         self.text = ""
@@ -46,45 +19,89 @@ class Tag(TopLevelTag):
         for attr, value in kwargs.items():
             self.attributes[attr] = value
 
+    def __add__(self, other):
+        self.children.append(other)
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
     def __str__(self):
         attrs = []
         for attribute, value in self.attributes.items():
             attrs.append('%s="%s"' % (attribute, value))
         attrs = " ".join(attrs)
+
+        if attrs:
+            attrs = ' ' + attrs
+
         if self.children:
-            opening = "\n<{name} {attrs}>".format(name=self.name, attrs=attrs)
+            opening = "\t<{name} {attrs}>".format(name=self.name, attrs=attrs)
+            opening = add_n(opening)
             internal = "%s" % self.text
             for child in self.children:
-                internal += str(child)
-            ending = "\n</%s>" % self.name
-            return opening + internal + ending
+                internal += '\t' + str(child)
+            ending = "\t</%s>" % self.name
+            txt_return = opening + internal + ending
         else:
             if not self.is_single:
-                return "\n<{name} {attrs}>{text}</{name}>".format(name=self.name, attrs=attrs, text=self.text)
+                txt_return = "\t<{name} {attrs}>{text}</{name}>".format(name=self.name, attrs=attrs, text=self.text)
             else:
-                return "\n<{name} {attrs}/>".format(name=self.name, attrs=attrs)
+                txt_return = "\t<{name} {attrs}/>".format(name=self.name, attrs=attrs)
+        return txt_return
 
 
-with HTML(output="test.html") as doc:
-    with TopLevelTag("head") as head:
-        with Tag("title") as title:
-            title.text = "hello"
-            head.children.append(title)
-        doc.children.append(head)
+class TopLevelTag(Tag):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
 
-    with TopLevelTag("body") as body:
-        with Tag("h1", klass=("main-text",)) as h1:
-            h1.text = "Test"
-            body.children.append(h1)
+    def __str__(self):
+        opening = "<{name}>".format(name=self.name)
+        opening = add_n(opening)
+        internal = ""
+        for child in self.children:
+            internal += str(child)
+        ending = "</%s>" % self.name
+        return add_n(opening + internal + ending)
 
-        with Tag("div", klass=("container", "container-fluid"), id="lead") as div:
-            with Tag("p") as paragraph:
-                paragraph.text = "another test"
-                div.children.append(paragraph)
 
-            with Tag("img", is_single=True, src="/icon.png", data_image="responsive") as img:
-                div.children.append(img)
+class HTML(TopLevelTag):
+    def __init__(self, output=None, **kwargs):
+        self.output = output
+        super().__init__('html', **kwargs)
 
-            body.children.append(div)
+    def __exit__(self, *args):
+        if self.output is None:
+            print(self)
+        else:
+            with open(self.output, "w", encoding="utf-8") as file:
+                file.write(str(self))
 
-        doc.children.append(body)
+
+if __name__ == "__main__":
+    with HTML(output="test.html") as doc:
+        with TopLevelTag("head") as head:
+            with Tag("title") as title:
+                title.text = "hello"
+                head += title
+            doc += head
+
+        with TopLevelTag("body") as body:
+            with Tag("h1", klass=("main-text",)) as h1:
+                h1.text = "Test"
+                body += h1
+
+            with Tag("div", klass=("container", "container-fluid"), id="lead") as div:
+                with Tag("p") as paragraph:
+                    paragraph.text = "another test"
+                    div += paragraph
+
+                with Tag("img", is_single=True, src="/icon.png", data_image="responsive") as img:
+                    div += img
+
+                body += div
+
+            doc += body
