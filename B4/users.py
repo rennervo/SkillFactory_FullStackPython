@@ -61,12 +61,16 @@ def request_data():
     return user
 
 
+def get_id_last_user(session):
+    last_user = session.query(User).all().last()
+    return last_user.id
+
 def main():
     session = connect_db()
     user = request_data()
     session.add(user)
     session.commit()
-    print("Пользователь успешно добавлен в БД")
+    print("Пользователь успешно добавлен в БД. ID нового пользователя {}".format(user.id))
 
 
 if __name__ == "__main__":
