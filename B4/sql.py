@@ -46,6 +46,3 @@ if __name__ == "__main__":
                                                           Athelete.gold_medals > 1)
     print("В базе данных найходится {} мужчин старше 25 лет имеющих 2 и более золотых медалей".format(
         menChampions.count()))
-
-    for a in athletes:
-        print("Внюха имеет такой формат: " + a.birthdate)
